@@ -170,11 +170,34 @@ wss.on('connection', function connection(ws, request) {
     }
   });
 
-  prisma.textMessage.create({
-    data: { roomId, userId, message: text }
-  }).catch(e => console.error("Text message DB save failed:", e));
-  break;
-}
+ prisma.textMessage.create({
+          data: { roomId, userId, message: text }
+        }).catch(e => console.error("Text message DB save failed:", e));
+        break;
+      }
+
+      case 'cursor_move': {
+        const x = typeof parsedData.x === 'number' ? parsedData.x : null;
+        const y = typeof parsedData.y === 'number' ? parsedData.y : null;
+        if (x === null || y === null) break;
+
+        const senderName = await getUserName(userId);
+        const outgoing = JSON.stringify({
+          type: 'cursor_move',
+          roomId,
+          userId,
+          senderName,
+          x,
+          y
+        });
+
+        users.forEach((client, clientWs) => {
+          if (clientWs !== ws && client.rooms.has(roomId)) {
+            clientWs.send(outgoing);
+          }
+        });
+        break;
+      }
     }
   });
 
@@ -182,6 +205,16 @@ wss.on('connection', function connection(ws, request) {
     const user = users.get(ws);
     if (user) {
         console.log(`User ${user.userId} disconnected.`);
+
+        user.rooms.forEach(roomId => {
+          const outgoing = JSON.stringify({ type: 'user_left', roomId, userId: user.userId });
+          users.forEach((client, clientWs) => {
+            if (clientWs !== ws && client.rooms.has(roomId)) {
+              clientWs.send(outgoing);
+            }
+          });
+        });
+
         users.delete(ws);
     }
   });

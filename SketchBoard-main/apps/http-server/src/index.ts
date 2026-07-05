@@ -206,7 +206,31 @@ app.get("/room/:slug", middleware, async (req, res) => {
     }
     res.json({ room });
 });
+// Resolves a shareable, unguessable publicId (UUID) to the room's real
+// data, including its internal numeric id used everywhere else
+// (chat history, websocket join, messages). Kept as a separate path
+// ("/rooms/...") rather than nesting under "/room/:slug" to avoid any
+// route-matching ambiguity between the two.
+app.get("/rooms/:publicId", middleware, async (req, res) => {
+  try {
+    const publicId = req.params.publicId;
+    if (!publicId || Array.isArray(publicId)) {
+      return res.status(400).json({ message: "Room publicId is required" });
+    }
 
+    const room = await prismaClient.room.findFirst({
+      where: { publicId }
+    });
+
+    if (!room) {
+      return res.status(404).json({ message: "Room not found" });
+    }
+    res.json({ room });
+  } catch (e) {
+    console.error("Failed to resolve room by publicId:", e);
+    res.status(500).json({ message: "Failed to resolve room" });
+  }
+});
 app.post("/ws/token", middleware, (req, res) => {
   const userId = req.userId as string; 
   const wsToken = jwt.sign({ userId }, JWT_SECRET, { expiresIn: '60s' }); 

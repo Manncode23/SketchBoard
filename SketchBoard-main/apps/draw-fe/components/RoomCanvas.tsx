@@ -5,10 +5,39 @@ import { useEffect, useState } from "react";
 import { Canvas } from "./Canvas";
 import { ChatPanel } from "./ChatPanel";
 
-export function RoomCanvas({ roomId }: { roomId: string }) {
+export function RoomCanvas({ roomId: publicId }: { roomId: string }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [resolvedRoomId, setResolvedRoomId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // Step 1: resolve the unguessable publicId from the URL into the real
+  // internal numeric room id. Everything downstream (chat history,
+  // messages, websocket join) keeps using that numeric id exactly as before.
   useEffect(() => {
+    let cancelled = false;
+
+    fetch(`${HTTP_BACKEND}/rooms/${publicId}`, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) throw new Error("Room not found or you don't have access.");
+        return res.json();
+      })
+      .then((data: { room: { id: number } }) => {
+        if (!cancelled) setResolvedRoomId(String(data.room.id));
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [publicId]);
+
+  // Step 2: once we have the real room id, connect the WebSocket exactly
+  // as before.
+  useEffect(() => {
+    if (!resolvedRoomId) return;
+
     const connect = async () => {
       try {
         const response = await fetch(`${HTTP_BACKEND}/ws/token`, {
@@ -28,7 +57,7 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
           setSocket(ws);
           ws.send(JSON.stringify({
             type: "join_room",
-            roomId
+            roomId: resolvedRoomId
           }));
         };
 
@@ -39,16 +68,20 @@ export function RoomCanvas({ roomId }: { roomId: string }) {
 
     connect();
 
-  }, [roomId]);
+  }, [resolvedRoomId]);
 
-  if (!socket) {
+  if (error) {
+    return <div>{error}</div>;
+  }
+
+  if (!resolvedRoomId || !socket) {
     return <div>Connecting to whiteboard...</div>;
   }
 
- return (
-  <>
-    <Canvas roomId={roomId} socket={socket} />
-    <ChatPanel roomId={roomId} socket={socket} />
-  </>
-);
+  return (
+    <>
+      <Canvas roomId={resolvedRoomId} socket={socket} />
+      <ChatPanel roomId={resolvedRoomId} socket={socket} />
+    </>
+  );
 }

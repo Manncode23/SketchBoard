@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 import { PenTool, ArrowRight } from "lucide-react";
-
 interface BoardCardProps {
-  id: number;
+  publicId: string;
   title: string;
   createdAt: string;
 }
@@ -26,9 +25,9 @@ const openTextVariants: Variants = {
   hover: { opacity: 1, x: 0 },
 };
 
-export const BoardCard = ({ id, title, createdAt }: BoardCardProps) => {
+export const BoardCard = ({ publicId, title, createdAt }: BoardCardProps) => {
   return (
-    <Link href={`/canvas/${id}`} className="block">
+    <Link href={`/canvas/${publicId}`} className="block">
       <motion.div
         initial="initial"
         whileHover="hover"

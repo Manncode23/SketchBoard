@@ -10,6 +10,7 @@ import { BoardCardSkeleton } from "@/components/Board/BoardCardSkeleton";
 
 type Room = {
   id: number;
+  publicId: string;
   slug: string;
   createdAt: string;
 };
@@ -81,12 +82,12 @@ export default function DashboardPage() {
         ) : rooms.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {rooms.map(room => (
-              <BoardCard 
-                key={room.id}
-                id={room.id}
-                title={room.slug}
-                createdAt={room.createdAt}
-              />
+             <BoardCard 
+        key={room.id}
+     publicId={room.publicId}
+     title={room.slug}
+      createdAt={room.createdAt}
+    />
             ))}
           </div>
         ) : (
